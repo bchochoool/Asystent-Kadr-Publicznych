@@ -8,7 +8,7 @@ import {partner,draftFeedback,agenda} from '../public/partner.mjs';
 import {paper} from '../public/print.mjs';
 const [manager,other,hr,employee]=demoPeople;
 const c0=()=>structuredClone(seed()[0]);
-const payload=c=>({scores:Object.fromEntries(criteria(c).map(k=>[k,5])),meeting:today(),from:c.openDate,to:today(),plan:'Omówić przykłady z mentorem.',rationale:''});
+const payload=c=>({scores:Object.fromEntries(criteria(c).map(k=>[k,5])),meeting:today(),plan:'Omówić przykłady z mentorem.',rationale:''});
 test('Arkusze A/B/C i kompletność ocen cząstkowych',()=>{
  for(const [sheet,count] of [['A',6],['B',5],['C',5]]){
    const c={sheet,extras:[],scores:{}};assert.equal(criteria(c).length,count);assert.equal(outcome(c),null);
@@ -69,12 +69,28 @@ test('Rejestr sprzeciwu, ponowne sporządzenie, zachowanie poprzedniej wersji',(
  assert.equal(c.stage,'active');assert.deepEqual(c.scores,{});assert.equal(c.archive[0].record.stage,'closed');
 });
 test('Zmiana stanowiska przed i po sześciu miesiącach',()=>{
- const c=c0();c.openDate='2025-01-10';c.start='2025-01-01';
+ const c=c0();c.openDate=c.openSigned=c.openAck='2025-01-10';c.start='2025-01-01';
  const p={date:'2025-07-10',detail:'Nowe zadania',position:'Koordynator',sheet:'B'};
  apply(c,'jobChange',p,hr);assert.equal(c.stage,'draft');assert.equal(c.sheet,'B');
  assert.equal(nextStep(c).date,working(addDays(p.date,30)));
- const later=c0();later.openDate='2025-01-10';apply(later,'jobChange',{...p,date:'2025-07-11'},hr);
+ const later=c0();later.openDate=later.openSigned=later.openAck='2025-01-10';
+ apply(later,'jobChange',{...p,date:'2025-07-11',lastWorkDay:'2025-07-09'},hr,'2025-07-01');
  assert.equal(later.early.from,'2025-07-04');assert.equal(later.early.to,'2025-08-11');
+});
+test('Okres w arkuszu wynika z potwierdzenia i daty sporządzenia lub ostatniego dnia na stanowisku',()=>{
+ const c=c0();c.openDate=c.openSigned='2025-01-10';c.openAck='2025-01-13';
+ const p={...payload(c),meeting:'2025-07-08',from:'2025-01-10',to:'2025-07-08'};
+ assert.throws(()=>apply(structuredClone(c),'review',{...p,meeting:'2025-01-12'},manager,'2025-07-09'),/Rozmowa oceniająca/);
+ const ordinary=apply(structuredClone(c),'review',p,manager,'2025-07-09');
+ assert.equal(ordinary.from,'2025-01-13');assert.equal(ordinary.to,'2025-07-09');
+ const jobChange={date:'2025-07-14',lastWorkDay:'2025-07-11',detail:'Nowe obowiązki'};
+ assert.throws(()=>apply(structuredClone(c),'jobChange',{...jobChange,lastWorkDay:'2025-07-14'},hr,'2025-07-01'),/Ostatni dzień/);
+ apply(c,'jobChange',jobChange,hr,'2025-07-01');
+ assert.throws(()=>apply(structuredClone(c),'review',{...p,meeting:'2025-07-06'},manager,'2025-07-06'),/okno/i);
+ const beforeChange=apply(structuredClone(c),'review',p,manager,'2025-07-09');
+ assert.equal(beforeChange.to,'2025-07-09');
+ apply(c,'review',p,manager,'2025-07-15');
+ assert.equal(c.to,'2025-07-11');assert.match(paper(c),/13\.01\.2025 – 11\.07\.2025/);
 });
 test('Zmiana przełożonego zachowuje kryteria i odcina poprzedni dostęp',()=>{
  const c=c0();transferCase(demoPeople,c,{manager:other.id,position:'Dyrektor',unit:'Wydział'},hr);
@@ -89,8 +105,17 @@ test('Ujemny wynik uruchamia sześciomiesięczny cykl od zapoznania, wybór kryt
 test('Uzasadnione rekomendacje bez nadawania punktów',()=>{
  const c=c0(),r=partner(c);
  assert.equal(r.covered,3);assert.equal(r.cards.length,3);assert.equal(r.cards[0].source.kind,'load');
+ assert.equal(r.cards[0].related.length,1);assert.notEqual(r.cards[0].source.date,r.cards[0].related[0].date);
  assert.ok(agenda(c,'feedback').includes(r.cards[0].question));assert.ok(draftFeedback(c).includes(c.notes[0].fact));
+ assert.ok(!draftFeedback(c).includes(r.cards[0].source.fact));
+ c.openAck=addDays(today(),-10);assert.equal(partner(c).cards[0].related.length,0);
  assert.deepEqual(c.scores,{});c.notes=[];assert.equal(partner(c).cards.length,0);
+});
+test('Wydruk w trakcie cyklu zawiera część I, a po zatwierdzeniu także część II',()=>{
+ const c=c0();apply(c,'saveReview',{...payload(c),plan:'Roboczy wpis'},manager);
+ assert.match(paper(c),/Część I\./);assert.doesNotMatch(paper(c),/Część II\.|Roboczy wpis/);
+ apply(c,'review',payload(c),manager);assert.match(paper(c),/Część II\./);
+ assert.match(paper(c),/Omówić przykłady z mentorem/);
 });
 test('Nieobecność i jawne zawiadomienie korygują termin jednokrotnie',()=>{
  const c=c0();const from=addDays(c.start,10),to=addDays(from,35);

@@ -1,5 +1,5 @@
 import {h,icon,btn,link,area,field,select,options,submit,hint,badge,caseLink,section,fold} from './fields.mjs';
-import {addDays,addMonths,criteria,deadline,forms,levels,names,nextStep,outcome,points,policy,positions,pretty,stages,working} from './rules.mjs';
+import {addDays,addMonths,criteria,deadline,forms,levels,names,outcome,points,policy,positions,pretty,reviewPeriod,stages,working} from './rules.mjs';
 import {agenda,draftFeedback,noteKinds,partner,suggestionsForDuties} from './partner.mjs';
 import {heading} from './views.mjs';
 import {paper} from './print.mjs';
@@ -38,16 +38,18 @@ function scoreForm(s,c) {
  const fields=criteria(c).map(k=>'<label class="scoreline"><span>'+h(names[k])+'</span><select name="score-'+k+'">'+options({'':'Wybierz punkty'},'')+points.map((n,i)=>'<option value="'+n+'" '+(c.scores[k]===n?'selected':'')+'>'+n+' · '+h(levels[i])+'</option>').join('')+'</select></label>').join('');
  const prom=c.employment==='appointed'?fold('Wniosek o kolejny stopień służbowy','<label class="check"><input type="checkbox" name="wantPromotion" '+(c.promotion?'checked':'')+'>Dołącz wniosek przy ocenie pozytywnej</label><div class="formgrid">'+field('Rok mianowania','year',c.promotion?.year||'','number')+select('Posiadany stopień','rank',Object.fromEntries(pointsForRank().map(n=>[n,''+n])),c.promotion?.rank||1)+field('Data przyznania stopnia','rankDate',c.promotion?.date||'','date')+'</div>'+area('Umotywowanie wniosku','promotionReason',c.promotion?.reason)):'';
  const proposals=partner(c).cards.filter(x=>x.kind==='growth').map(x=>x.action);
- return section('Rozmowa oceniająca i pisemna ocena',link('Przygotuj pytania z Partnerem HR',caseLink(c,'partner'),'textlink','partner')+
- form('review','<div class="formgrid">'+field('Data rozmowy oceniającej','meeting',c.meeting||s.today,'date',true)+field('Okres od','from',c.from||c.openDate,'date',true)+field('Okres do','to',c.to||s.today,'date',true)+'</div><h3>Oceny cząstkowe przełożonego</h3>'+fields+'<p class="result" id="live-result" role="status">'+h(resultLabel(c))+'</p>'+
- area('Uzasadnienie oceny (obowiązkowe przy negatywnej)','rationale',c.rationale)+(c.notes.length?btn('Wstaw zapisane przykłady pracy','useFeedback','mini','pen'):'')+area('Wnioski do indywidualnego programu rozwoju zawodowego','plan',c.plan)+(proposals.length?btn('Wstaw propozycję do omówienia','usePlan','mini','leaf'):'')+prom+
+ const {from,to}=reviewPeriod(c,s.today);
+ return section('Rozmowa oceniająca i pisemna ocena','<div class="actions">'+link('Dodaj obserwację',caseLink(c,'notes'),'textlink','pen')+link('Przygotuj pytania z Partnerem HR',caseLink(c,'partner'),'textlink','partner')+'</div>'+
+ '<dl class="facts">'+kv('Od potwierdzenia kryteriów',pretty(from))+kv(to===s.today?'Do dnia sporządzenia oceny':'Do ostatniego dnia na stanowisku',pretty(to))+'</dl>'+
+ form('review','<div class="formgrid">'+field('Data rozmowy oceniającej','meeting',c.meeting||s.today,'date',true)+'</div><h3>Oceny cząstkowe przełożonego</h3>'+fields+'<p class="result" id="live-result" role="status">'+h(resultLabel(c))+'</p>'+
+ area('Uzasadnienie oceny (obowiązkowe przy negatywnej)','rationale',c.rationale)+(draftFeedback(c)?btn('Wstaw przykłady pracy do uzasadnienia','useFeedback','mini','pen'):'')+area('Wnioski do indywidualnego programu rozwoju zawodowego','plan',c.plan)+(proposals.length?btn('Wstaw propozycję do omówienia','usePlan','mini','leaf'):'')+prom+
  '<div class="actions">'+submit('Zatwierdź ocenę i przekaż','review')+submit('Zapisz szkic oceny','saveReview')+'</div>'));
 }
 const pointsForRank=()=>Array.from({length:9},(_,i)=>i+1);
 export function resultLabel(c){
  const r=outcome(c);return r?'Ocena '+(r.positive?'pozytywna':'negatywna')+' · średnia '+r.mean.toLocaleString('pl-PL',{maximumFractionDigits:2})+' · '+levels[r.level]+(Object.values(c.scores).includes(1)?' · co najmniej jedna ocena cząstkowa wynosi 1':''):'Wynik pojawi się po wskazaniu punktów dla każdego kryterium.';
 }
-function ackForm(c,which) {return form(which,field('Miejscowość potwierdzenia','town',c.town,'text',true),which==='ack'?'Potwierdzam zapoznanie z oceną i wnioskami':'Potwierdzam rozmowę, kryteria i termin');}
+function ackForm(c,which) {return form(which,field('Miejscowość potwierdzenia','town',c.town,'text',true),which==='ack'?'Potwierdzam rozmowę i zapoznanie z oceną':'Potwierdzam rozmowę, kryteria i termin');}
 function workflow(s,c) {
  const manager=s.actor.role==='manager',employee=s.actor.role==='employee';
  let body='';
@@ -62,7 +64,10 @@ function workflow(s,c) {
     list(criteria(c).map(k=>names[k]))+(c.expectations?'<h3>Oczekiwania</h3><p class="preserve">'+h(c.expectations)+'</p>':'')+(c.goals?'<h3>Cele</h3><p class="preserve">'+h(c.goals)+'</p>':'')+hint('Termin sporządzenia oceny: '+pretty(deadline(c))+'.')+
     (employee&&c.stage==='opening'?ackForm(c,'acceptOpening'):hint(c.stage==='opening'?'Oczekuje na potwierdzenie przez osobę ocenianą.':c.stage==='active'?'Trwa okres obserwacji pracy.':'Przełożony przygotowuje część I.')));
  }
- const switcher=s.demo && manager&&['written','opening'].includes(c.stage)?'<p>'+link('Przejdź do widoku '+c.employeeName,'profiles/'+c.employee+'/'+c.id,'btn secondary','user')+'</p>':'';
+ const switcher=s.demo && manager&&['written','opening'].includes(c.stage)
+   ? '<p>'+link('Przejdź do widoku '+c.employeeName,'profiles/'+c.employee+'/'+c.id,'btn secondary','user')+'</p>'
+   : s.demo && employee && c.stage==='active'
+     ? '<p>'+link('Wróć do widoku przełożonego','profiles/'+c.manager+'/'+c.id,'btn secondary','user')+'</p>' : '';
  return steps(c)+body+switcher+fold('Dane sprawy i obowiązki',identity(c)+hint(c.duties));
 }
 function postReview(s,c){
@@ -83,9 +88,10 @@ export function notesView(s,c) {
 }
 export function partnerView(c,type=c.stage==='draft'?'opening':'review') {
  const info=partner(c);
+ const source=n=>'<blockquote><small>'+h(pretty(n.date))+' · '+h(names[n.criterion])+'</small><p>'+h(n.fact)+'</p>'+(n.impact?hint(n.impact):'')+'</blockquote>';
  return '<div class="partnerintro"><div class="partnericon">'+icon('partner')+'</div><div><h2>Przygotowanie do rozmowy</h2><p>Partner HR łączy przykłady pracy z pytaniami i działaniami rozwojowymi. Punkty przyznaje przełożony.</p></div></div>'+
+ section('Przykłady i propozycje działań',info.cards.length?info.cards.map(x=>'<article class="insight"><h3>'+h(x.title)+'</h3><p><strong>Zapytaj</strong> '+h(x.question)+'</p><p><strong>Ustal następny krok</strong> '+h(x.action)+'</p>'+[x.source,...x.related].map(source).join('')+'</article>').join(''):hint('Dodaj pierwszą obserwację, aby powiązać podpowiedź z konkretną sytuacją.'))+
  section('Scenariusz spotkania',select('Rodzaj rozmowy','agendaType',{opening:'Rozmowa rozpoczynająca',feedback:'Bieżąca informacja zwrotna',review:'Rozmowa oceniająca'},type)+'<ol class="agenda">'+agenda(c,type).map(q=>'<li>'+h(q)+'</li>').join('')+'</ol>'+hint('Przy trudnym temacie opisz zachowanie i jego skutek. Zostaw czas na perspektywę pracownika.'))+
- section('Przykłady i propozycje działań',info.cards.length?info.cards.map(x=>'<article class="insight"><h3>'+h(x.title)+'</h3><blockquote>'+h(x.source.fact)+'<small>'+h(pretty(x.source.date))+' · '+h(names[x.source.criterion])+'</small></blockquote><p>'+h(x.action)+'</p></article>').join(''):hint('Dodaj pierwszą obserwację, aby powiązać podpowiedź z konkretną sytuacją.'))+
  section('Pokrycie kryteriów przykładami','<p><strong>'+info.covered+' z '+info.total+'</strong> kryteriów ma zapisaną obserwację.</p>'+(info.missing.length?hint('Uzupełnij perspektywę podczas rozmowy: '+info.missing.map(k=>names[k]).join(', ')+'.'):'')+link('Otwórz dziennik obserwacji',caseLink(c,'notes')));
 }
 function eventsView(s,c){
@@ -95,7 +101,7 @@ function eventsView(s,c){
  body+=fold('Zarejestruj usprawiedliwioną nieobecność',form('absence',hint('Podaj zakończony okres bez informacji medycznych. System łączy okresy przedzielone dniami wolnymi i przelicza termin, gdy ciągłość przekracza miesiąc.')+field('Od','from','','date',true)+field('Do','to','','date',true),'Zapisz okres'));
  const candidates=s.directory.filter(x=>x.role==='manager'&&x.id!==c.manager);
  if(candidates.length)body+=fold('Zmień przełożonego',form('transfer',select('Nowy przełożony','manager',Object.fromEntries(candidates.map(x=>[x.id,x.name])))+field('Stanowisko nowego przełożonego','position','','text',true)+field('Komórka nowego przełożonego','unit','','text',true),'Przekaż sprawę'));
- if(c.stage==='active')body+=fold('Istotna zmiana stanowiska i obowiązków',form('jobChange',field('Data zmiany','date',s.today,'date',true)+field('Nowe stanowisko','position','','text',true)+select('Nowy rodzaj stanowiska','sheet',positions,c.sheet)+area('Opis nowych obowiązków','detail','',true),'Zarejestruj zmianę'));
+ if(c.stage==='active')body+=fold('Istotna zmiana stanowiska i obowiązków',form('jobChange','<div class="formgrid">'+field('Data zmiany','date',s.today,'date',true)+field('Ostatni dzień pracy na dotychczasowym stanowisku (przy wcześniejszej ocenie)','lastWorkDay','','date')+'</div>'+field('Nowe stanowisko','position','','text',true)+select('Nowy rodzaj stanowiska','sheet',positions,c.sheet)+area('Opis nowych obowiązków','detail','',true),'Zarejestruj zmianę'));
  }
  if(s.actor.role==='employee'&&editable&&!c.request)body+=fold('Złóż wniosek o zmianę terminu',form('requestDate',field('Proponowany termin','date',deadline(c),'date',true)+area('Uzasadnienie','reason','',true),'Przekaż wniosek'));
  if(c.request)body+=section('Wniosek pracownika',hint(pretty(c.request.date)+' · '+c.request.reason)+(manager?form('declineDate',area('Uzasadnienie odmowy','reason','',true),'Odmów zmiany terminu'):''));
@@ -105,7 +111,7 @@ function eventsView(s,c){
  (!c.events.length&&!c.absences.length?hint('Brak zdarzeń kadrowych w tym cyklu.'):''));
 }
 function documentView(c,demo){
- return section('Arkusz '+c.sheet,identity(c)+'<div class="actions">'+btn('Drukuj lub zapisz PDF','print','primary','print')+btn('Pobierz arkusz HTML','export','secondary','download')+'</div>'+hint('Eksport zawiera części formalne arkusza. Prywatne obserwacje pozostają w dzienniku przełożonego.'))+
+ return section('Arkusz '+c.sheet,identity(c)+'<div class="actions">'+btn('Drukuj lub zapisz PDF','print','primary','print')+btn('Pobierz arkusz HTML','export','secondary','download')+'</div>'+hint('Pisemna ocena pojawia się w arkuszu po jej zatwierdzeniu. Wydruk pomija dziennik obserwacji.')+fold('Podgląd arkusza',paper(c,demo)))+
  section('Historia sprawy','<ol class="timeline">'+[...c.log].reverse().map(x=>'<li><strong>'+h(x.text)+'</strong><small>'+h(pretty(x.at.slice(0,10)))+' · '+h(x.by)+'</small></li>').join('')+'</ol>')+
  (c.archive.length?section('Wcześniejsze wersje',c.archive.map(x=>fold('Arkusz z '+pretty(x.date),hint(x.reason)+(x.record?paper(x.record,demo):''))).join('')):'');
 }

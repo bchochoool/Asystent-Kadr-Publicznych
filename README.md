@@ -6,7 +6,7 @@ Cyfrowy asystent ocen okresowych dla służby cywilnej. Przełożony ustala z pr
 
 ## Demo dla jury
 
-**[Pobierz interaktywne demo HTML](https://github.com/bchochoool/Asystent-Kadr-Publicznych/raw/refs/heads/main/docs/index.html)** i otwórz pobrany plik w aktualnym Chrome, Edge lub Firefox. Demo jest samodzielne, zawiera fikcyjne dane i działa bez internetu. Zmiany dotyczą bieżącej karty przeglądarki. W razie podglądu kodu na GitHubie wybierz **Download raw file**.
+Otwórz **[interaktywne demo HTML](docs/index.html)** w aktualnej przeglądarce. Jeśli oglądasz plik na GitHubie, wybierz **Download raw file**. Demo działa bez internetu i używa fikcyjnych danych. Aby powtórzyć scenariusz od zera, zamknij kartę i otwórz plik w nowej sesji prywatnej.
 
 | Materiał | Co można sprawdzić |
 | --- | --- |
@@ -14,9 +14,9 @@ Cyfrowy asystent ocen okresowych dla służby cywilnej. Przełożony ustala z pr
 | [Film demonstracyjny](docs/demonstracja.webm) | Rzeczywisty przebieg oceny z polskimi napisami. |
 | [Treść do HackTribe i scenariusz pokazu](docs/zgloszenie.md) | Opis projektu i kolejność działań podczas prezentacji. |
 
-**Pierwsza sprawa.** Na pulpicie Marty wybierz **Otwórz sprawę** przy Lenie Nowak. Partner HR powiąże pytania i propozycje działań z trzema obserwacjami. W zakładce **Przebieg oceny** wskaż punkty, uzupełnij wnioski rozwojowe i zatwierdź ocenę. Przejdź do widoku Leny, potwierdź zapoznanie, a następnie otwórz **Arkusz i historia**.
+**Partner HR.** Na pulpicie Marty otwórz sprawę Leny Nowak i zakładkę **Partner HR**. Dwa przykłady spiętrzenia zadań prowadzą do pytania o priorytety i propozycji zmiany podziału pracy. Każda podpowiedź pokazuje wykorzystane obserwacje, ich daty i skutki.
 
-**Pełny cykl od zera.** Wróć do roli Marty i wybierz **Nowy arkusz → Olga Kania**. Wprowadź dane stanowiska, ustal oczekiwania i przekaż kryteria. Potwierdź je jako Olga, wróć jako Marta i dodaj obserwację. Dalsze kroki są takie same jak w sprawie Leny. W widoku Ewy Maj można obsłużyć zdarzenia kadrowe i zarejestrować rozstrzygnięcie sprzeciwu.
+**Pełny cykl od zera.** Jako Marta wybierz **Nowy arkusz → Olga Kania**. Wprowadź dane stanowiska, ustal oczekiwania i przekaż kryteria. Potwierdź je jako Olga. Wróć do Marty, dodaj obserwację rodzaju **Do rozwoju**, a w **Przebiegu oceny** wybierz punkty i wstaw propozycję do IPRZ. Po zatwierdzeniu przejdź do Olgi, potwierdź zapoznanie i otwórz **Arkusz i historia → Podgląd arkusza**. W widoku Ewy Maj można obsłużyć zdarzenia kadrowe i zarejestrować rozstrzygnięcie sprzeciwu.
 
 ## Wersja serwerowa
 
@@ -55,12 +55,12 @@ Na Linuxie i macOS ustaw tryb przez `export AKP_MODE=office`. W trybie urzędu a
 | --- | --- |
 | Część I | Dobiera A dla kierownika urzędu, B dla osoby bezpośrednio kierującej pracownikami, C dla pozostałych stanowisk. Ładuje kryteria obowiązkowe i dopuszcza do trzech różnych dodatkowych. Rejestruje rozmowę, oczekiwania, termin i potwierdzenie pracownika. |
 | Obserwacja i rozmowy | Zachowuje datę, kryterium, opis działania i skutek. Przygotowuje scenariusz rozmowy rozpoczynającej, bieżącej i oceniającej. Pokazuje kryteria, dla których brakuje jeszcze przykładów. |
-| Partner HR | Dla oznaczonego przez przełożonego przykładu podpowiada pytanie i działanie. Pozwala przenieść fakty do edytowalnego uzasadnienia lub propozycję ćwiczenia do IPRZ. Działa lokalnie na jawnych regułach. Punktację wybiera człowiek. |
-| Część II | Wylicza średnią oraz poziom z ocen 1, 3, 5, 7, 9. Pojedyncza jedynka oznacza wynik negatywny. Waliduje kompletność punktacji, uzasadnienie oceny negatywnej i wnioski do IPRZ. |
+| Partner HR | Łączy oznaczone przez przełożonego obserwacje z pytaniami i działaniami. Dwa sygnały obciążenia z różnych dni w odstępie do 45 dni uruchamiają propozycję sprawdzenia podziału pracy. Notatki oznaczone jako obciążenie służą rozmowie organizacyjnej i są pomijane przy automatycznym przenoszeniu treści do uzasadnienia. Moduł działa na jawnych regułach. |
+| Część II | Wyznacza okres oceny od potwierdzenia kryteriów do sporządzenia oceny albo ostatniego dnia na stanowisku w trybie wcześniejszej oceny. Wylicza średnią oraz poziom z ocen 1, 3, 5, 7, 9. Pojedyncza jedynka oznacza wynik negatywny. Sprawdza punktację, uzasadnienie oceny negatywnej i wnioski do IPRZ. |
 | Część III | Umożliwia umotywowany wniosek przy pozytywnej ocenie urzędnika mianowanego, z rokiem mianowania, dotychczasowym stopniem i datą jego przyznania. Dziewiąty stopień zamyka możliwość wniosku o kolejny. |
 | Zdarzenia i terminy | Obsługuje zmianę przełożonego i istotną zmianę stanowiska, okresy usprawiedliwionej nieobecności, wniosek o zmianę terminu i zawiadomienie. Przy obliczeniach uwzględnia weekendy, święta i koniec miesiąca. |
 | Po ocenie | Rejestruje zapoznanie, sprzeciw i decyzję dyrektora wprowadzoną przez kadry. Zachowuje wcześniejszy arkusz przy uwzględnieniu sprzeciwu. Kolejny cykl może pobrać wynik poprzedniego. |
-| Dokumenty | Eksportuje formalną treść arkusza jako HTML i przez okno drukowania do PDF. Generuje zdarzenie kalendarzowe ICS z przypomnieniem. Zawiadomienia o zmianie terminu dołącza do wydruku. |
+| Dokumenty | Pozwala przejrzeć treść w aplikacji, pobrać ją jako HTML lub wydrukować do PDF. Część I jest dostępna w toku sprawy, a pisemna ocena po zatwierdzeniu. Generuje zdarzenie ICS z przypomnieniem. Zawiadomienia o zmianie terminu dołącza do wydruku. |
 
 ## Pilotaż w urzędzie
 

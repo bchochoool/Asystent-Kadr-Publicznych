@@ -59,6 +59,13 @@ export function absenceDays(periods) {
   return merged.reduce((sum,p)=>sum+(p.to>=addMonths(p.from,1)?days(p.from,p.to)+1:0),0);
 }
 export const deadline=c=>working(addDays(c.baseDue,absenceDays(c.absences)-(c.absenceOffset||0)));
+export function reviewPeriod(c, writtenDate) {
+  const from=c.openAck||c.openDate;
+  const to=c.early && writtenDate>=c.early.change
+    ? c.early.lastWorkDay||addDays(c.early.change,-1)
+    : writtenDate;
+  return {from,to};
+}
 export function nextStep(c) {
   if(c.stage==='draft'||c.stage==='opening')return {label:'Ustalenie kryteriów',date:working(addDays(c.resetDate||c.start,!c.resetDate && c.previous?.result==='negative'?policy.repeatSetup:policy.setup))};
   if(c.stage==='closed')return {label:'Termin sprzeciwu',date:working(addDays(c.ackDate,policy.appeal))};

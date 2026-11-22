@@ -1,4 +1,4 @@
-import {criteria,names,pretty} from './rules.mjs';
+import {criteria,days,names,pretty,reviewPeriod,today} from './rules.mjs';
 const actions={
   communication:'Przeredaguj jedno pismo z koleżanką lub kolegą. Poproś odbiorcę o streszczenie następnych kroków.',
   cooperation:'Przy trzech kolejnych przekazaniach sprawy uzgodnij właściciela, termin i sposób potwierdzenia odbioru.',
@@ -10,15 +10,24 @@ const actions={
   strategy:'Połącz jeden cel wydziału z miernikiem, osobą odpowiedzialną i terminem przeglądu.'
 };
 export const noteKinds={strength:'Mocna strona',growth:'Do rozwoju',load:'Obciążenie pracą',fact:'Obserwacja'};
+function relevantNotes(c) {
+  const activeCriteria=criteria(c);
+  const {from,to}=reviewPeriod(c,c.writtenDate||today());
+  if(!from)return [];
+  return c.notes.filter(n=>n.date>=from && n.date<=to && activeCriteria.includes(n.criterion));
+}
 export function partner(c){
-  const notes=[...c.notes].sort((a,b)=>b.date.localeCompare(a.date));
+  const notes=relevantNotes(c).sort((a,b)=>b.date.localeCompare(a.date));
   const cards=[];
   for(const kind of ['load','strength','growth']){
     const n=notes.find(x=>x.kind===kind);if(!n)continue;
-    const text=kind==='load'?['Uzgodnij priorytety','Które zadanie możemy przesunąć lub przekazać innej osobie?','Ustal z pracownikiem jedną zmianę obciążenia i termin sprawdzenia, czy pomogła.']:
+    const related=kind==='load'?notes.filter(x=>x.kind==='load' && x.date<n.date && days(x.date,n.date)<=45).slice(0,2):[];
+    const text=kind==='load'?(related.length
+      ?['Sprawdź obciążenie przy powtarzających się zadaniach','Co powtórzyło się w tych sytuacjach? Które zadanie możemy przesunąć albo przekazać?','Uzgodnij podział zadań na czas spiętrzenia. Za dwa tygodnie sprawdźcie, czy zmiana pozwoliła utrzymać wspólne priorytety.']
+      :['Uzgodnij priorytety','Które zadanie możemy przesunąć lub przekazać innej osobie?','Ustal z pracownikiem jedną zmianę obciążenia i termin sprawdzenia, czy pomogła.']):
       kind==='strength'?['Doceń konkretny wkład','Co pomogło osiągnąć ten efekt i gdzie jeszcze można to wykorzystać?','Opisz działanie i jego skutek. Zapytaj, czy pracownik chce podzielić się sposobem pracy z zespołem.']:
       ['Zaplanuj ćwiczenie rozwojowe','Co przy następnym podobnym zadaniu warto zrobić inaczej?',actions[n.criterion]||'Wybierz z pracownikiem jedno zadanie do przećwiczenia z mentorem. Po dwóch tygodniach omówcie wynik.'];
-    cards.push({kind,title:text[0],question:text[1],action:text[2],source:n});
+    cards.push({kind,title:text[0],question:text[1],action:text[2],source:n,related});
   }
   const missing=criteria(c).filter(k=>!notes.some(n=>n.criterion===k));
   return {cards,missing,covered:criteria(c).length-missing.length,total:criteria(c).length};
@@ -35,7 +44,8 @@ export function agenda(c,type) {
     'Jakie wsparcie uzgodnimy i kiedy wrócimy do jego efektów?'];
 }
 export function draftFeedback(c) {
-  return [...c.notes].sort((a,b)=>a.date.localeCompare(b.date)).map(n=>pretty(n.date)+' · '+names[n.criterion]+'\n'+n.fact+(n.impact?' '+n.impact:'')).join('\n\n');
+  return relevantNotes(c).filter(n=>n.kind!=='load').sort((a,b)=>a.date.localeCompare(b.date))
+    .map(n=>pretty(n.date)+' · '+names[n.criterion]+'\n'+n.fact+(n.impact?' '+n.impact:'')).join('\n\n');
 }
 export function suggestionsForDuties(c) {
  const rules=[['analysis',/analiz|zestawień|raport/i],['service',/mieszkań|klient|wniosk|interesant/i],['negotiation',/negocj|uzgodnie/i],['speaking',/prezentac|wystąpi|szkoleni/i],['crisis',/kryzys|interwenc/i],['creativity',/usprawn|upraszcz|projekt/i]];
