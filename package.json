@@ -1,0 +1,8 @@
+{
+  "name": "asystent-kadr-publicznych",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=24.0.0" },
+  "scripts": { "start": "node server.mjs", "test": "node --test", "demo": "node scripts/build-demo.mjs", "account": "node scripts/account.mjs" }
+}
